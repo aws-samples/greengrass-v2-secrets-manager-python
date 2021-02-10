@@ -90,6 +90,12 @@ When [configuring your component](https://docs.aws.amazon.com/greengrass/v2/deve
 }
 ```
 
+### Test and validate
+
+In the AWS Management Console, go to **AWS IoT Core** >> **Test** >> **MQTT test client**.
+
+In *Subscription Topic*, enter **ggv2/secrets/demo**, and click **Subscribe to topic**. You should now see your secret being published to AWS IoT Core. 
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
