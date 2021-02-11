@@ -17,74 +17,31 @@
 
 import json
 import logging
-import os
 import sys
 from threading import Timer
 
-import awsiot.greengrasscoreipc.client as client
-from awscrt.io import (
-    ClientBootstrap,
-    DefaultHostResolver,
-    EventLoopGroup,
-    SocketDomain,
-    SocketOptions,
-)
-from awsiot.eventstreamrpc import Connection, LifecycleHandler, MessageAmendment
-from awsiot.greengrasscoreipc.model import PublishToIoTCoreRequest, GetSecretValueRequest
+import awsiot.greengrasscoreipc
+import awsiot.greengrasscoreipc.model as model
 
 TIMEOUT = 10
-
-
-class IPCUtils:
-    def connect(self):
-        elg = EventLoopGroup()
-        resolver = DefaultHostResolver(elg)
-        bootstrap = ClientBootstrap(elg, resolver)
-        socket_options = SocketOptions()
-        socket_options.domain = SocketDomain.Local
-        amender = MessageAmendment.create_static_authtoken_amender(os.getenv("SVCUID"))
-        hostname = os.getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT")
-        connection = Connection(
-            host_name=hostname,
-            port=8033,
-            bootstrap=bootstrap,
-            socket_options=socket_options,
-            connect_message_amender=amender,
-        )
-        self.lifecycle_handler = LifecycleHandler()
-        connect_future = connection.connect(self.lifecycle_handler)
-        connect_future.result(TIMEOUT)
-        return connection
-
 
 # Setup logging to stdout
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-
-# Init IPC client
-ipc_utils = IPCUtils()
-connection = ipc_utils.connect()
-ipc_client = client.GreengrassCoreIPCClient(connection)
-
-# Retrieve secret
-get_secret_value = ipc_client.new_get_secret_value()
-get_secret_value.activate(request=GetSecretValueRequest(secret_id='greengrass_v2_secret'))
-secret_response = get_secret_value.get_response().result()
-json_secret_string = json.loads(secret_response.secret_value.secret_string)
-get_secret_value.close()
 
 
 def publish_secret():
     try:
 
         payload = {
-            'SECRET_STRING': json_secret_string['SECRET_STRING']
+            'SECRET_STRING': json_secret_string['SECRET_VALUE']
         }
 
-        ipc_client.new_publish_to_iot_core().activate(
-            request=PublishToIoTCoreRequest(topic_name='ggv2/secrets/demo',
-                                            qos='0',
-                                            payload=json.dumps(payload).encode()))
+        publish_operation = ipc_client.new_publish_to_iot_core()
+        publish_operation.activate(
+            request=model.PublishToIoTCoreRequest(topic_name='ggv2/secrets/demo',
+                                                  qos='0',
+                                                  payload=json.dumps(payload).encode()))
 
     except Exception as e:
         logger.error("Failed to publish message: " + repr(e))
@@ -93,5 +50,15 @@ def publish_secret():
     Timer(5, publish_secret).start()
 
 
-# Start executing the function above
-publish_secret()
+if __name__ == '__main__':
+    ipc_client = awsiot.greengrasscoreipc.connect()
+
+    # Retrieve secret
+    get_secret_operation = ipc_client.new_get_secret_value()
+    get_secret_operation.activate(request=model.GetSecretValueRequest(secret_id='greengrass_v2_secret'))
+    secret_response = get_secret_operation.get_response().result()
+    json_secret_string = json.loads(secret_response.secret_value.secret_string)
+    get_secret_operation.close()
+
+    # Start executing the function above
+    publish_secret()

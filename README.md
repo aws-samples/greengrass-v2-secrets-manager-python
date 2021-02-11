@@ -33,7 +33,7 @@ echo -n Enter secret value: && read -s SECRET_VALUE
 
 ```console
 aws secretsmanager create-secret --name greengrass_v2_secret --profile $AWS_PROFILE --region $AWS_REGION
-export SECRET_ARN=$(aws secretsmanager describe-secret --secret-id greengrass_v2_secret --profile $AWS_PROFILE)
+export SECRET_ARN=$(aws secretsmanager describe-secret --secret-id greengrass_v2_secret --profile $AWS_PROFILE | jq -r .ARN)
 aws secretsmanager put-secret-value --profile $AWS_PROFILE --secret-id greengrass_v2_secret --secret-string "{\"SECRET_VALUE\":\"$SECRET_VALUE\"}" --region $AWS_REGION
 ```
 
@@ -77,8 +77,9 @@ aws iam attach-role-policy --profile $AWS_PROFILE --role-name MyGreengrassV2Toke
 
 Create a new Greengrass v2 deployment, including the following components:
 * com.aws.secretsManagerPythonExample v0.1.0
+* aws.greengrass.secretManager v2.0.5
 
-When [configuring your component](https://docs.aws.amazon.com/greengrass/v2/developerguide/update-component-configurations.html), make sure you copy/the following JSON snippet into **Configuration to merge** (with your secret ARN created previously). Then click **Confirm**.
+When [configuring your components](https://docs.aws.amazon.com/greengrass/v2/developerguide/update-component-configurations.html), configure **aws.greengrass.secretManager** and make sure you copy/the following JSON snippet into **Configuration to merge** (with your secret ARN created previously). Then click **Confirm**.
 
 ```json
 {
@@ -95,6 +96,8 @@ When [configuring your component](https://docs.aws.amazon.com/greengrass/v2/deve
 In the AWS Management Console, go to **AWS IoT Core** >> **Test** >> **MQTT test client**.
 
 In *Subscription Topic*, enter **ggv2/secrets/demo**, and click **Subscribe to topic**. You should now see your secret being published to AWS IoT Core. 
+
+![publish_secret](img/publish_secret.png)
 
 ## Security
 
